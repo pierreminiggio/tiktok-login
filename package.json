@@ -1,0 +1,26 @@
+{
+  "name": "@pierreminiggio/tiktok-login",
+  "version": "1.0.0",
+  "description": "Tiktok Poster",
+  "main": "main.js",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pierreminiggio/tiktok-login.git"
+  },
+  "author": "Pierre MINIGGIO",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pierreminiggio/tiktok-login/issues"
+  },
+  "homepage": "https://github.com/pierreminiggio/tiktok-login#readme",
+  "dependencies": {
+    "node": "^12.6.0",
+    "puppeteer": "^10.0.0",
+    "puppeteer-extra": "^3.1.18",
+    "puppeteer-extra-plugin-stealth": "^2.7.8"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
