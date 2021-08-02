@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
+import proxyLogin from '@pierreminiggio/puppeteer-proxy-login'
 puppeteer.use(StealthPlugin())
 
 /**
@@ -23,6 +24,8 @@ export default function login(
     sendLog = (toLog) => {},
     proxy = null
 ) {
+    const {alterPuppeteerOptions, pageAuthenticate} = proxyLogin(proxy)
+
     return new Promise(async (resolve, rejects) => {
         sendLog('Launch !')
 
@@ -31,15 +34,14 @@ export default function login(
             '--no-sandbox'
         ]
 
-        if (proxy !== null) {
-            sendLog('Using proxy ' + proxy)
-            args.push('--proxy-server=' + proxy)
-        }
-
-        const browser = await puppeteer.launch({
+        const puppeteerOptions = {
             headless: ! show,
             args
-        })
+        }
+
+        alterPuppeteerOptions(puppeteerOptions)
+
+        const browser = await puppeteer.launch(puppeteerOptions)
         sendLog('Launched')
         let posterTimeout = true
         setTimeout(async () => {
@@ -52,6 +54,7 @@ export default function login(
 
         sendLog('Go to login page')
         const page = await browser.newPage()
+        await pageAuthenticate(page)
         await page.evaluateOnNewDocument(() => {
             delete navigator.__proto__.webdriver;
         });
