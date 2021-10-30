@@ -87,9 +87,51 @@ export default function login(
                     }, facebookLogin, facebookPassword)
                 } catch (loginError) {
                     await browser.close()
-                    rejects('Facebook Login Failed')
+                    rejects('Facebook Login failed')
 
                     return
+                }
+
+                await facebookLoginPage.waitForTimeout(3000)
+
+                const acceptedCookies = await facebookLoginPage.evaluate(() => {
+                    const buttons = document.querySelectorAll('[role="button"]')
+                    if (buttons.length !== 3) {
+                        return false
+                    }
+
+                    buttons[2].click()
+
+                    return true
+                })
+
+                if (acceptedCookies) {
+                    await facebookLoginPage.waitForTimeout(1000)
+                }
+
+                const typeAgainPasswordInputSelector = '[name="pass"]'
+
+                const needToTypePasswordAgain = await facebookLoginPage.evaluate(typeAgainPasswordInputSelector => {
+                    return document.querySelector(typeAgainPasswordInputSelector) !== null
+                }, typeAgainPasswordInputSelector)
+
+                if (needToTypePasswordAgain) {
+                    sendLog('Need to type password again')
+
+                    try {
+                        await page.evaluate((typeAgainPasswordInputSelector, facebookPassword) => {
+                            document.querySelector(typeAgainPasswordInputSelector).value = facebookPassword
+                        }, typeAgainPasswordInputSelector, facebookPassword)
+    
+                        const continueButtonSelector = 'input[type="submit"]'
+                        await facebookLoginPage.click(continueButtonSelector)
+                    } catch (typeAgainPasswordError) {
+                        await browser.close()
+                        rejects('Typing password again failed')
+    
+                        return
+                    }
+                    
                 }
 
                 sendLog('Likely logged in !')
