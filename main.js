@@ -73,7 +73,7 @@ export default function login(
         sendLog('Waited !')
 
         let hasLoggedIn = false
-        await browser.on('targetcreated', async () => {
+        browser.on('targetcreated', async () => {
             sendLog('Target created')
             /** @type {import('puppeteer').Page} foundFacebookLogin */
             const facebookLoginPage = await findFacebookLogin(browser, sendLog);
@@ -83,7 +83,6 @@ export default function login(
                 await facebookLoginPage.reload()
                 sendLog('Fb login page reloaded. Loggin-in ...')
                 try {
-
                     await facebookLoginPage.evaluate((facebookLogin, facebookPassword) => {
                         const body = document.body
                         body.querySelector('#email').value = facebookLogin
@@ -106,10 +105,17 @@ export default function login(
 
                 const loginErrorBoxSelector = '.login_error_box'
 
-                const errorMessage = await facebookLoginPage.evaluate(
-                    loginErrorBoxSelector => document.querySelector(loginErrorBoxSelector)?.innerText,
-                    loginErrorBoxSelector
-                )
+                let errorMessage = false
+                try {
+                    errorMessage = await facebookLoginPage.evaluate(
+                        loginErrorBoxSelector => document.querySelector(loginErrorBoxSelector)?.innerText,
+                        loginErrorBoxSelector
+                    )
+                } catch (e) {
+                    sendLog('Likely logged in !')
+
+                    return
+                }
 
                 if (errorMessage) {
                     if (posterTimeout) {
@@ -118,6 +124,27 @@ export default function login(
                     }
                     await browser.close()
                     rejects('Facebook Login failed : ' + errorMessage)
+
+                    return
+                }
+
+                await facebookLoginPage.waitForTimeout(3000)
+
+                try {
+                    const continueButtonSelector = '[data-visualcompletion="ignore"]'
+
+                    const isContinueButtonDisplayed = await facebookLoginPage.evaluate(
+                        continueButtonSelector => document.querySelector(continueButtonSelector) !== null,
+                        continueButtonSelector
+                    )
+
+                    if (isContinueButtonDisplayed) {
+                        await facebookLoginPage.click(continueButtonSelector)
+                    }
+
+                    await facebookLoginPage.waitForTimeout(3000)
+                } catch (e) {
+                    sendLog('Likely logged in !')
 
                     return
                 }
@@ -168,19 +195,30 @@ export default function login(
 
                 sendLog('Likely logged in !')
             } else {
-                /** @type {import('puppeteer').Page} loggedInPage */
-                const loggedInPage = await findLoggedInPage(browser, sendLog);
-                sendLog('TikTok page found ? ' + (loggedInPage ? 'yes' : 'no'))
-                if (loggedInPage) {
-                    if (! hasLoggedIn) {
-                        hasLoggedIn = true
-                        if (posterTimeout) {
-                            clearTimeout(posterTimeout)
-                            posterTimeout = null
-                        }
-                        console.log('logged in !')
-                        resolve(loggedInPage)
+                sendLog('WTF is this page ?')
+            }
+        })
+
+        browser.on('targetdestroyed', async () => {
+            try {
+                await page.waitForTimeout(10000)
+            } catch (e) {
+                sendLog('Program probably just ended')
+                return
+            }
+            
+            /** @type {import('puppeteer').Page} loggedInPage */
+            const loggedInPage = await findLoggedInPage(browser, sendLog);
+            sendLog('TikTok page found ? ' + (loggedInPage ? 'yes' : 'no'))
+            if (loggedInPage) {
+                if (! hasLoggedIn) {
+                    hasLoggedIn = true
+                    if (posterTimeout) {
+                        clearTimeout(posterTimeout)
+                        posterTimeout = null
                     }
+                    sendLog('logged in !')
+                    resolve(loggedInPage)
                 }
             }
         })
