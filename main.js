@@ -43,13 +43,11 @@ export default function login(
 
         const browser = await puppeteer.launch(puppeteerOptions)
         sendLog('Launched')
-        let posterTimeout = true
-        setTimeout(async () => {
-            if (posterTimeout) {
-                await browser.close()
-                sendLog('Timed out')
-                rejects('timed out')
-            }
+
+        let posterTimeout = setTimeout(async () => {
+            await browser.close()
+            sendLog('Timed out')
+            rejects('timed out')
         }, 30000)
 
         sendLog('Go to login page')
@@ -63,8 +61,14 @@ export default function login(
 
         sendLog('Waiting for Fb Login selector...')
 
-        const facebookButtonSelector = '.channel-item-wrapper-2gBWB+.channel-item-wrapper-2gBWB+.channel-item-wrapper-2gBWB .channel-name-2qzLW'
-        await page.waitForSelector(facebookButtonSelector)
+        let facebookButtonSelector = '.channel-item-wrapper-2gBWB+.channel-item-wrapper-2gBWB+.channel-item-wrapper-2gBWB .channel-name-2qzLW'
+
+        try {
+            await page.waitForSelector(facebookButtonSelector, {timeout: 10000})
+        } catch (e) {
+            facebookButtonSelector = '#loginContainer>div>div>div+div+a+a+div'
+            await page.waitForSelector(facebookButtonSelector)
+        }
 
         sendLog('Waited !')
 
@@ -79,13 +83,19 @@ export default function login(
                 await facebookLoginPage.reload()
                 sendLog('Fb login page reloaded. Loggin-in ...')
                 try {
+
                     await facebookLoginPage.evaluate((facebookLogin, facebookPassword) => {
                         const body = document.body
                         body.querySelector('#email').value = facebookLogin
                         body.querySelector('#pass').value = facebookPassword
                         body.querySelector('input[name="login"]').click()
                     }, facebookLogin, facebookPassword)
+
                 } catch (loginError) {
+                    if (posterTimeout) {
+                        clearTimeout(posterTimeout)
+                        posterTimeout = null
+                    }
                     await browser.close()
                     rejects('Facebook Login failed')
 
@@ -93,6 +103,24 @@ export default function login(
                 }
 
                 await facebookLoginPage.waitForTimeout(3000)
+
+                const loginErrorBoxSelector = '.login_error_box'
+
+                const errorMessage = await facebookLoginPage.evaluate(
+                    loginErrorBoxSelector => document.querySelector(loginErrorBoxSelector)?.innerText,
+                    loginErrorBoxSelector
+                )
+
+                if (errorMessage) {
+                    if (posterTimeout) {
+                        clearTimeout(posterTimeout)
+                        posterTimeout = null
+                    }
+                    await browser.close()
+                    rejects('Facebook Login failed : ' + errorMessage)
+
+                    return
+                }
 
                 const acceptedCookies = await facebookLoginPage.evaluate(() => {
                     const buttons = document.querySelectorAll('[role="button"]')
@@ -126,6 +154,10 @@ export default function login(
                         const continueButtonSelector = 'input[type="submit"]'
                         await facebookLoginPage.click(continueButtonSelector)
                     } catch (typeAgainPasswordError) {
+                        if (posterTimeout) {
+                            clearTimeout(posterTimeout)
+                            posterTimeout = null
+                        }
                         await browser.close()
                         rejects('Typing password again failed')
     
@@ -142,7 +174,10 @@ export default function login(
                 if (loggedInPage) {
                     if (! hasLoggedIn) {
                         hasLoggedIn = true
-                        posterTimeout = false
+                        if (posterTimeout) {
+                            clearTimeout(posterTimeout)
+                            posterTimeout = null
+                        }
                         console.log('logged in !')
                         resolve(loggedInPage)
                     }
