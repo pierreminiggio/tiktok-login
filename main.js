@@ -73,7 +73,7 @@ export default function login(
         sendLog('Waited !')
 
         let hasLoggedIn = false
-        browser.on('targetcreated', async () => {
+        const onTargetCreatedHandler = async () => {
             sendLog('Target created')
             /** @type {import('puppeteer').Page} foundFacebookLogin */
             const facebookLoginPage = await findFacebookLogin(browser, sendLog);
@@ -112,6 +112,7 @@ export default function login(
                         loginErrorBoxSelector
                     )
                 } catch (e) {
+                    browser.off('targetcreated', onTargetCreatedHandler)
                     sendLog('Likely logged in !')
 
                     return
@@ -144,6 +145,7 @@ export default function login(
 
                     await facebookLoginPage.waitForTimeout(3000)
                 } catch (e) {
+                    browser.off('targetcreated', onTargetCreatedHandler)
                     sendLog('Likely logged in !')
 
                     return
@@ -193,13 +195,15 @@ export default function login(
                     
                 }
 
+                browser.off('targetcreated', onTargetCreatedHandler)
                 sendLog('Likely logged in !')
             } else {
                 sendLog('WTF is this page ?')
             }
-        })
+        }
+        browser.on('targetcreated', onTargetCreatedHandler)
 
-        browser.on('targetdestroyed', async () => {
+        const onTargetDestroyedHandler = async () => {
             try {
                 await page.waitForTimeout(10000)
             } catch (e) {
@@ -217,11 +221,14 @@ export default function login(
                         clearTimeout(posterTimeout)
                         posterTimeout = null
                     }
+                    browser.off('targetdestroyed', onTargetDestroyedHandler)
                     sendLog('logged in !')
                     resolve(loggedInPage)
                 }
             }
-        })
+        }
+
+        browser.on('targetdestroyed', onTargetDestroyedHandler)
 
         sendLog('Clicking Fb Login button !')
         await page.click(facebookButtonSelector)
