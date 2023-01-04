@@ -61,7 +61,7 @@ export default function login(
 
         sendLog('Waiting for Fb Login selector...')
 
-        let facebookButtonSelector = '.channel-item-wrapper-2gBWB+.channel-item-wrapper-2gBWB+.channel-item-wrapper-2gBWB .channel-name-2qzLW'
+        let facebookButtonSelector = '[href="/login/phone-or-email"]+div'
 
         try {
             await page.waitForSelector(facebookButtonSelector, {timeout: 10000})
@@ -89,7 +89,6 @@ export default function login(
                         body.querySelector('#pass').value = facebookPassword
                         body.querySelector('input[name="login"]').click()
                     }, facebookLogin, facebookPassword)
-
                 } catch (loginError) {
                     if (posterTimeout) {
                         clearTimeout(posterTimeout)
